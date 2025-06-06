@@ -1,0 +1,238 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Facts & Gifs - Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        body {
+            background-color: #f0f2f5;
+        }
+
+        .table td, .table th {
+            vertical-align: middle;
+        }
+        /* Altura mínima para el contenedor de resultados para evitar saltos en la UI mientras carga */
+        .fact-container {
+            min-height: 350px;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container my-4">
+        <div class="card shadow-lg">
+            <div class="card-header text-center bg-dark text-white">
+                <h1 class="display-5">Cat Facts & Gifs</h1>
+                <p class="lead">Dashboard de Facts y Gif</p>
+            </div>
+
+            <div class="card-body p-4">
+                <ul class="nav nav-tabs" id="mainTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-tab-pane">Resultado</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-tab-pane">Historial</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="mainTabContent">
+                    <div class="tab-pane fade show active p-3" id="result-tab-pane" role="tabpanel">
+                        <div id="results" class="row align-items-center fact-container" style="display: none;">
+                            <div class="col-md-5 text-center">
+                                <img id="gifImage" src="" class="img-fluid rounded shadow" alt="Cat GIF">
+                            </div>
+                            <div class="col-md-7">
+                                <figure>
+                                    <blockquote class="blockquote fs-4">
+                                        <p id="factText"></p>
+                                    </blockquote>
+                                    <figcaption id="gifTitle" class="blockquote-footer text-end"></figcaption>
+                                </figure>
+                                <div class="text-center mt-2">
+                                    <button id="refreshGifBtn" class="btn btn-secondary btn-sm" title="Obtener otro GIF para este dato">
+                                        <span class="btn-icon"><i class="bi bi-images"></i></span>
+                                        <span class="spinner-border spinner-border-sm" role="status" style="display: none;"></span>
+                                        <span class="btn-text">Refrescar GIF</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade p-3" id="history-tab-pane" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr><th>Fecha</th><th>Dato Completo</th><th>Query</th><th>URL del GIF</th></tr>
+                                </thead>
+                                <tbody id="historyBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer text-end bg-light">
+                <div id="error" class="alert alert-danger float-start p-2" role="alert" style="display: none;"></div>
+                <button id="contentBtn" class="btn btn-primary rounded-circle p-2 lh-1" title="Obtener Nuevo Contenido">
+                    <span id="btnIcon"><i class="bi bi-arrow-clockwise fs-4"></i></span>
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm" role="status" style="display: none;"></span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // --- Referencias a Elementos del DOM ---
+        const contentBtn = document.getElementById('contentBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnSpinner = document.getElementById('btnSpinner');
+        const refreshGifBtn = document.getElementById('refreshGifBtn');
+
+        const errorDiv = document.getElementById('error');
+        const resultsDiv = document.getElementById('results');
+        const factText = document.getElementById('factText');
+        const gifImage = document.getElementById('gifImage');
+        const gifTitle = document.getElementById('gifTitle');
+        const historyBody = document.getElementById('historyBody');
+
+        // --- Estado de la Aplicación ---
+        let currentFactText = ''; // Guardará el fact actual para poder refrescar el GIF
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        contentBtn.addEventListener('click', getContentAsync);
+        refreshGifBtn.addEventListener('click', refreshGifAsync);
+
+        // --- Funciones de Lógica ---
+        async function initializeApp() {
+            setMainButtonLoading(true);
+            await Promise.all([getHistoryAsync(), getContentAsync()]);
+            setMainButtonLoading(false);
+        }
+
+        async function getContentAsync() {
+            setMainButtonLoading(true);
+            try {
+                const factData = await fetchJson('/api/fact', 'Dato no disponible');
+                currentFactText = factData.fact;
+                const gifData = await fetchJson(`/api/gif?fact=${encodeURIComponent(currentFactText)}`, 'GIF no disponible');
+                updateResultUI(currentFactText, gifData);
+                await getHistoryAsync();
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setMainButtonLoading(false);
+            }
+        }
+
+        //async function refreshGifAsync() {
+        //    if (!currentFactText) return;
+        //    setRefreshGifButtonLoading(true);
+        //    try {
+        //        const gifData = await fetchJson(`/api/gif?fact=${encodeURIComponent(currentFactText)}`, 'GIF no disponible');
+        //        updateGifUI(gifData);
+        //    } catch (error) {
+        //        showError(error.message);
+        //    } finally {
+        //        setRefreshGifButtonLoading(false);
+        //    }
+        //}
+
+        async function refreshGifAsync() {
+            if (!currentFactText) return;
+            setRefreshGifButtonLoading(true);
+            try {
+                const gifData = await fetchJson(`/api/gif?fact=${encodeURIComponent(currentFactText)}&random=true`, 'GIF no disponible');
+
+                updateGifUI(gifData);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setRefreshGifButtonLoading(false);
+            }
+        }
+
+        async function getHistoryAsync() {
+            try {
+                const historyData = await fetchJson('/api/history', 'No se pudo cargar el historial.');
+                renderHistoryTable(historyData);
+            } catch (error) {
+                if (!errorDiv.textContent) showError(error.message);
+            }
+        }
+
+        // --- Funciones de Ayuda ---
+        async function fetchJson(url, errorMessage) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${errorMessage} (${response.statusText})`);
+            return response.json();
+        }
+
+        function updateResultUI(fact, gif) {
+            factText.textContent = fact;
+            updateGifUI(gif);
+            resultsDiv.style.display = 'flex';
+        }
+
+        function updateGifUI(gif) {
+            gifImage.src = gif.gifUrl;
+            gifImage.alt = gif.title;
+            gifTitle.textContent = gif.title;
+        }
+
+        function renderHistoryTable(history) {
+            historyBody.innerHTML = '';
+            if (!history || history.length === 0) {
+                historyBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay historial.</td></tr>';
+                return;
+            }
+            history.forEach(item => {
+                const formattedDate = new Date(item.timestamp).toLocaleString();
+                const row = `<tr><td>${formattedDate}</td><td>${item.catFact}</td><td>${item.query}</td><td><a href="${item.gifUrl}" target="_blank">Ver GIF</a></td></tr>`;
+                historyBody.innerHTML += row;
+            });
+        }
+
+        function setMainButtonLoading(isLoading) {
+            errorDiv.style.display = 'none';
+            if (isLoading) {
+                btnIcon.style.display = 'none';
+                btnSpinner.style.display = 'inline-block';
+                contentBtn.disabled = true;
+            } else {
+                btnIcon.style.display = 'inline-block';
+                btnSpinner.style.display = 'none';
+                contentBtn.disabled = false;
+            }
+        }
+
+        function setRefreshGifButtonLoading(isLoading) {
+            const icon = refreshGifBtn.querySelector('.btn-icon');
+            const spinner = refreshGifBtn.querySelector('.spinner-border');
+            if (isLoading) {
+                icon.style.display = 'none';
+                spinner.style.display = 'inline-block';
+                refreshGifBtn.disabled = true;
+            } else {
+                icon.style.display = 'inline-block';
+                spinner.style.display = 'none';
+                refreshGifBtn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
