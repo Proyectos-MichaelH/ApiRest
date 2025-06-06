@@ -82,3 +82,4 @@ Abre la solución (`.sln`) en Visual Studio y presiona `F5` para compilar y ejec
 - **Botón de Actualizar Principal Obtiene un nuevo dato curioso y un nuevo GIF, y guarda la búsqueda en el historial.
 - **Botón "Refrescar GIF":** Obtiene un GIF diferente para el mismo dato curioso, sin alterar el texto ni el historial.
 - **Pestaña "Historial":** Muestra un registro de todas las búsquedas principales realizadas, consultado directamente desde la base de datos.
+- 
