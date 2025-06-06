@@ -24,7 +24,7 @@ Para ejecutar este proyecto, es necesario tener instalado:
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone [URL]
+git clone [https://github.com/Proyectos-MichaelH/PruebaTecnica-CatGiphyApi.git]
 ```
 
 ### 2. Configurar la Clave de API Secreta
